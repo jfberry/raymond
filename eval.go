@@ -307,6 +307,17 @@ func (v *evalVisitor) evalPath(ctx reflect.Value, parts []string, exprRoot bool)
 func (v *evalVisitor) evalField(ctx reflect.Value, fieldName string, exprRoot bool) reflect.Value {
 	result := zero
 
+	// check if context implements FieldResolver for custom field lookup
+	// (checked before indirect so pointer receivers work)
+	if ctx.IsValid() && ctx.CanInterface() {
+		if resolver, ok := ctx.Interface().(FieldResolver); ok {
+			if val, found := resolver.GetField(fieldName); found {
+				return reflect.ValueOf(val)
+			}
+			return zero
+		}
+	}
+
 	ctx, _ = indirect(ctx)
 	if !ctx.IsValid() {
 		return result
