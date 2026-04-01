@@ -240,6 +240,14 @@ func (options *Options) evalBlock(ctx interface{}, data *DataFrame, key interfac
 	return result
 }
 
+// IsSubExpression returns true when the helper is being called as a
+// subexpression (e.g. the (eq ...) in {{#if (eq a b)}}). Helpers should
+// return a value (e.g. bool) in this case rather than calling Fn()/Inverse(),
+// since those would leak the outer block's content.
+func (options *Options) IsSubExpression() bool {
+	return options.eval.subExpression
+}
+
 // Fn evaluates block with current evaluation context.
 func (options *Options) Fn() string {
 	return options.evalBlock(nil, nil, nil)

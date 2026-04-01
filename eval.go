@@ -40,6 +40,10 @@ type evalVisitor struct {
 	// memoize expressions that were function calls
 	exprFunc map[*ast.Expression]bool
 
+	// subExpression is true when currently evaluating a helper as a
+	// subexpression (e.g. the (eq ...) in {{#if (eq a b)}}).
+	subExpression bool
+
 	// used for info on panic
 	curNode ast.Node
 }
@@ -980,7 +984,12 @@ func (v *evalVisitor) VisitExpression(node *ast.Expression) interface{} {
 func (v *evalVisitor) VisitSubExpression(node *ast.SubExpression) interface{} {
 	v.at(node)
 
-	return node.Expression.Accept(v)
+	prev := v.subExpression
+	v.subExpression = true
+	result := node.Expression.Accept(v)
+	v.subExpression = prev
+
+	return result
 }
 
 // VisitPath implements corresponding Visitor interface method
