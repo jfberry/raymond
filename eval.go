@@ -612,6 +612,7 @@ func (v *evalVisitor) callFunc(name string, funcVal reflect.Value, options *Opti
 
 	// check parameters number
 	addOptions := false
+	optionsOnly := false
 	numIn := funcType.NumIn()
 	variadic := funcType.IsVariadic()
 
@@ -622,8 +623,22 @@ func (v *evalVisitor) callFunc(name string, funcVal reflect.Value, options *Opti
 		}
 	}
 
-	if !addOptions && (len(params) != numIn && !variadic) {
+	// Support options-only helpers: func(options *Options) where all template
+	// args are accessed via options.Params(). This enables variadic-style helpers
+	// that need Options for block mode (Fn/Inverse/IsSubExpression).
+	if !addOptions && numIn == 1 && !variadic {
+		if funcType.In(0) == reflect.TypeOf(options) {
+			optionsOnly = true
+		}
+	}
+
+	if !addOptions && !optionsOnly && (len(params) != numIn && !variadic) {
 		v.errorf("Helper '%s' called with wrong number of arguments, needed %d but got %d", name, numIn, len(params))
+	}
+
+	if optionsOnly {
+		result := funcVal.Call([]reflect.Value{reflect.ValueOf(options)})
+		return result[0]
 	}
 
 	vaCount := len(params) - numIn
@@ -632,7 +647,7 @@ func (v *evalVisitor) callFunc(name string, funcVal reflect.Value, options *Opti
 	}
 
 	// check and collect arguments
-	args := make([]reflect.Value, numIn+vaCount)
+	args := make([]reflect.Value, 0, numIn+vaCount)
 	for i, param := range params {
 		arg := reflect.ValueOf(param)
 		var argType reflect.Type
@@ -667,11 +682,11 @@ func (v *evalVisitor) callFunc(name string, funcVal reflect.Value, options *Opti
 			}
 		}
 
-		args[i] = arg
+		args = append(args, arg)
 	}
 
 	if addOptions {
-		args[numIn+vaCount-1] = reflect.ValueOf(options)
+		args = append(args, reflect.ValueOf(options))
 	}
 
 	result := funcVal.Call(args)
