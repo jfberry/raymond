@@ -616,22 +616,27 @@ func (v *evalVisitor) callFunc(name string, funcVal reflect.Value, options *Opti
 	numIn := funcType.NumIn()
 	variadic := funcType.IsVariadic()
 
-	if numIn == len(params)+1 {
-		lastArgType := funcType.In(numIn - 1)
-		if reflect.TypeOf(options).AssignableTo(lastArgType) {
-			addOptions = true
-		}
+	// Check if the last parameter of the helper function is *Options.
+	// If so, we always append the options object — extra template arguments
+	// are silently ignored rather than being misinterpreted as the options pointer
+	// (which causes nil-dereference panics).
+	optionsType := reflect.TypeOf(options)
+	if numIn > 0 && funcType.In(numIn-1) == optionsType {
+		addOptions = true
 	}
 
 	// Support options-only helpers: func(options *Options) where all template
 	// args are accessed via options.Params(). This enables variadic-style helpers
 	// that need Options for block mode (Fn/Inverse/IsSubExpression).
-	if !addOptions && numIn == 1 && !variadic {
-		if funcType.In(0) == reflect.TypeOf(options) {
-			optionsOnly = true
-		}
+	if numIn == 1 && !variadic && funcType.In(0) == optionsType {
+		optionsOnly = true
+		addOptions = false
 	}
 
+	expectedParams := numIn
+	if addOptions {
+		expectedParams = numIn - 1
+	}
 	if !addOptions && !optionsOnly && (len(params) != numIn && !variadic) {
 		v.errorf("Helper '%s' called with wrong number of arguments, needed %d but got %d", name, numIn, len(params))
 	}
@@ -641,14 +646,22 @@ func (v *evalVisitor) callFunc(name string, funcVal reflect.Value, options *Opti
 		return result[0]
 	}
 
-	vaCount := len(params) - numIn
+	// Truncate params to what the function expects (excluding the options slot).
+	// Extra template arguments are silently dropped rather than being passed
+	// where *Options is expected.
+	useParams := params
+	if addOptions && len(params) > expectedParams {
+		useParams = params[:expectedParams]
+	}
+
+	vaCount := len(useParams) - numIn
 	if vaCount < 0 {
 		vaCount = 0
 	}
 
 	// check and collect arguments
 	args := make([]reflect.Value, 0, numIn+vaCount)
-	for i, param := range params {
+	for i, param := range useParams {
 		arg := reflect.ValueOf(param)
 		var argType reflect.Type
 
