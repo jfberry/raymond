@@ -229,12 +229,19 @@ func (options *Options) newIterDataFrame(length int, i int, key interface{}) *Da
 // Evaluation
 //
 
-// evalBlock evaluates block with given context, private data and iteration key
+// evalBlock evaluates block with given context, private data and iteration key.
+//
+// The block is popped from the stack before rendering and restored after. This
+// prevents inline helpers inside the body from seeing the enclosing block via
+// curBlock() — without this, an inline helper calling FnWith() would re-evaluate
+// the enclosing block's body, causing infinite recursion.
 func (options *Options) evalBlock(ctx interface{}, data *DataFrame, key interface{}) string {
 	result := ""
 
 	if block := options.eval.curBlock(); (block != nil) && (block.Program != nil) {
+		options.eval.popBlock()
 		result = options.eval.evalProgram(block.Program, ctx, data, key)
+		options.eval.pushBlock(block)
 	}
 
 	return result
@@ -280,7 +287,9 @@ func (options *Options) FnData(data *DataFrame) string {
 func (options *Options) Inverse() string {
 	result := ""
 	if block := options.eval.curBlock(); (block != nil) && (block.Inverse != nil) {
+		options.eval.popBlock()
 		result, _ = block.Inverse.Accept(options.eval).(string)
+		options.eval.pushBlock(block)
 	}
 
 	return result
