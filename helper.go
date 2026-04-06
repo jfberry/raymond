@@ -248,6 +248,14 @@ func (options *Options) IsSubExpression() bool {
 	return options.eval.subExpression
 }
 
+// IsBlock returns true when the helper is being called as a block helper
+// ({{#helper}}...{{/helper}}) rather than an inline expression ({{helper}}).
+// Helpers that call Fn()/FnWith() should check this to avoid accidentally
+// re-evaluating an enclosing block's content when used inline.
+func (options *Options) IsBlock() bool {
+	return options.eval.inBlockHelper
+}
+
 // Fn evaluates block with current evaluation context.
 func (options *Options) Fn() string {
 	return options.evalBlock(nil, nil, nil)

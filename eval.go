@@ -44,6 +44,11 @@ type evalVisitor struct {
 	// subexpression (e.g. the (eq ...) in {{#if (eq a b)}}).
 	subExpression bool
 
+	// inBlockHelper is true when the current expression is being evaluated
+	// as part of a block statement ({{#helper}}...{{/helper}}). This lets
+	// helpers distinguish block invocation from inline invocation.
+	inBlockHelper bool
+
 	// used for info on panic
 	curNode ast.Node
 }
@@ -881,8 +886,11 @@ func (v *evalVisitor) VisitBlock(node *ast.BlockStatement) interface{} {
 
 	var result interface{}
 
-	// evaluate expression
+	// evaluate expression — mark as block helper so Options.IsBlock() works
+	prevInBlock := v.inBlockHelper
+	v.inBlockHelper = true
 	expr := node.Expression.Accept(v)
+	v.inBlockHelper = prevInBlock
 
 	if v.isHelperCall(node.Expression) || v.wasFuncCall(node.Expression) {
 		// it is the responsibility of the helper/function to evaluate block
