@@ -845,6 +845,15 @@ func (v *evalVisitor) wasFuncCall(node *ast.Expression) bool {
 func (v *evalVisitor) VisitProgram(node *ast.Program) interface{} {
 	v.at(node)
 
+	// A block helper renders its body (and {{else}} body) while its own
+	// invocation is still being evaluated, so inBlockHelper/subExpression
+	// still describe that helper. Statements in the body are new
+	// invocations: clear the flags so Options.IsBlock/IsSubExpression
+	// report their own mode, then restore them for the enclosing helper.
+	prevInBlock, prevSub := v.inBlockHelper, v.subExpression
+	v.inBlockHelper, v.subExpression = false, false
+	defer func() { v.inBlockHelper, v.subExpression = prevInBlock, prevSub }()
+
 	buf := new(bytes.Buffer)
 
 	for _, n := range node.Body {
