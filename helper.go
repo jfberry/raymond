@@ -115,6 +115,24 @@ func findHelper(name string) reflect.Value {
 	return helpers[name]
 }
 
+// HelperArgProvider is implemented by context values that wrap another value,
+// for example an iteration wrapper that adds fields alongside the item. When
+// such a value is passed to a helper as a param or hash value, the helper
+// receives HelperArg() instead, so helpers (including the builtin if, unless
+// and with) see the underlying value. Rendering ({{this}}) and field lookups
+// still use the wrapper itself.
+type HelperArgProvider interface {
+	HelperArg() interface{}
+}
+
+// helperArg returns the value a helper should receive for v.
+func helperArg(v interface{}) interface{} {
+	if p, ok := v.(HelperArgProvider); ok {
+		return p.HelperArg()
+	}
+	return v
+}
+
 // newOptions instanciates a new Options
 func newOptions(eval *evalVisitor, params []interface{}, hash map[string]interface{}) *Options {
 	return &Options{

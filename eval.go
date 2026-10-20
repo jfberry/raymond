@@ -736,12 +736,15 @@ func (v *evalVisitor) helperOptions(node *ast.Expression) *Options {
 	v.inBlockHelper, v.subExpression = false, false
 
 	for _, paramNode := range node.Params {
-		param := paramNode.Accept(v)
+		param := helperArg(paramNode.Accept(v))
 		params = append(params, param)
 	}
 
 	if node.Hash != nil {
 		hash, _ = node.Hash.Accept(v).(map[string]interface{})
+		for k, val := range hash {
+			hash[k] = helperArg(val)
+		}
 	}
 
 	v.inBlockHelper, v.subExpression = isBlock, isSub
