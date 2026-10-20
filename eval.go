@@ -728,6 +728,13 @@ func (v *evalVisitor) helperOptions(node *ast.Expression) *Options {
 	var params []interface{}
 	var hash map[string]interface{}
 
+	// Record this invocation's mode, then clear it while the params and
+	// hash are evaluated: each subexpression param is its own invocation
+	// (VisitSubExpression sets its flag) and must not see this helper's
+	// block flag.
+	isBlock, isSub := v.inBlockHelper, v.subExpression
+	v.inBlockHelper, v.subExpression = false, false
+
 	for _, paramNode := range node.Params {
 		param := paramNode.Accept(v)
 		params = append(params, param)
@@ -737,7 +744,11 @@ func (v *evalVisitor) helperOptions(node *ast.Expression) *Options {
 		hash, _ = node.Hash.Accept(v).(map[string]interface{})
 	}
 
-	return newOptions(v, params, hash)
+	v.inBlockHelper, v.subExpression = isBlock, isSub
+
+	options := newOptions(v, params, hash)
+	options.isBlock, options.isSubExpression = isBlock, isSub
+	return options
 }
 
 //

@@ -17,6 +17,10 @@ type Options struct {
 	// params
 	params []interface{}
 	hash   map[string]interface{}
+
+	// invocation mode, recorded when the options are built
+	isBlock         bool
+	isSubExpression bool
 }
 
 var (
@@ -252,7 +256,7 @@ func (options *Options) evalBlock(ctx interface{}, data *DataFrame, key interfac
 // return a value (e.g. bool) in this case rather than calling Fn()/Inverse(),
 // since those would leak the outer block's content.
 func (options *Options) IsSubExpression() bool {
-	return options.eval.subExpression
+	return options.isSubExpression
 }
 
 // IsBlock returns true when the helper is being called as a block helper
@@ -260,7 +264,7 @@ func (options *Options) IsSubExpression() bool {
 // Helpers that call Fn()/FnWith() should check this to avoid accidentally
 // re-evaluating an enclosing block's content when used inline.
 func (options *Options) IsBlock() bool {
-	return options.eval.inBlockHelper
+	return options.isBlock
 }
 
 // Fn evaluates block with current evaluation context.
